@@ -6,12 +6,13 @@ from tkinter import messagebox
 import csv
 import numpy
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 ser = None
 last_rssi = None
 mac_to_row = {}  # Dictionary to map MAC address to row ID in the table
 updated_rows = set()  # Set to track updated rows
+mac_last_seen = {}  # Dictionary to track the last time each MAC address was seen
 
 def read_serial_data():
     global ser
@@ -52,19 +53,35 @@ def on_data_received():
             print(f"Error processing packet: {e}")
 
 def update_table(mac_address_str, rssi):
+    current_time = datetime.now()
+    mac_last_seen[mac_address_str] = current_time
+
     if mac_address_str in mac_to_row:
         # Update existing row
         row_id = mac_to_row[mac_address_str]
-        table.item(row_id, values=(mac_address_str, rssi, table.item(row_id, 'values')[2]))
+        table.item(row_id, values=(mac_address_str, rssi, table.item(row_id, 'values')[2], 'Connected'))
         updated_rows.add(row_id)  # Mark this row as updated
     else:
         # Insert new row
-        row_id = table.insert('', 'end', values=(mac_address_str, rssi, ''))
+        row_id = table.insert('', 'end', values=(mac_address_str, rssi, '', 'Connected'))
         mac_to_row[mac_address_str] = row_id
         updated_rows.add(row_id)  # Mark this row as updated
 
 def update_rssi():
     on_data_received()
+
+    # Update status for each row
+    for mac_address, row_id in mac_to_row.items():
+        last_seen = mac_last_seen.get(mac_address)
+        if last_seen:
+            elapsed_time = datetime.now() - last_seen
+            status = 'Connected' if elapsed_time <= timedelta(seconds=10) else 'Disconnected'
+            current_values = table.item(row_id, 'values')
+            table.item(row_id, values=(current_values[0], current_values[1], current_values[2], status))
+            # Update status color
+            tags = ['connected'] if status == 'Connected' else ['disconnected']
+            table.item(row_id, tags=tags)
+
     root.after(1000, update_rssi)  # Update every 1 second
 
 def save_to_csv():
@@ -77,11 +94,11 @@ def save_to_csv():
         # Write data rows
         for row_id in updated_rows:
             row = table.item(row_id)['values']
-            if len(row) == 3:  # Check if all columns are filled
+            if len(row) == 4:  # Check if all columns are filled
                 date_time_now = datetime.now()
                 date_str = date_time_now.strftime('%Y-%m-%d')
                 time_str = date_time_now.strftime('%H:%M:%S')
-                writer.writerow(row + [date_str, time_str])
+                writer.writerow(row[:3] + [date_str, time_str])
         # Clear the updated rows set after saving
         updated_rows.clear()
 
@@ -97,7 +114,7 @@ def edit_distance(event):
         def on_entry_validate(event):
             new_distance = entry.get()
             current_values = table.item(selected_item, 'values')
-            table.item(selected_item, values=(current_values[0], current_values[1], new_distance))
+            table.item(selected_item, values=(current_values[0], current_values[1], new_distance, current_values[3]))
             entry.destroy()
             updated_rows.add(selected_item)  # Mark this row as updated
 
@@ -127,6 +144,21 @@ root.title("Beacon Distance Ranging")  # Set the window title
 # Set the favicon
 root.iconbitmap('logo.ico')  # Ensure 'logo.ico' is in the same directory or provide the full path
 
+# Apply dark mode colors
+root.configure(bg='#2e2e2e')
+style = ttk.Style(root)
+style.theme_use('clam')
+style.configure("TFrame", background='#2e2e2e')
+style.configure("TLabel", background='#2e2e2e', foreground='#ffffff')
+style.configure("TCombobox", background='#2e2e2e', foreground='#ffffff', fieldbackground='#2e2e2e')
+style.configure("TButton", background='#444444', foreground='#ffffff')
+style.configure("Treeview", background='#2e2e2e', fieldbackground='#2e2e2e', foreground='#ffffff', rowheight=25)
+style.configure("Treeview.Heading", background='#444444', foreground='#ffffff')
+style.map("TButton", background=[('active', '#555555')])
+
+# Define custom styles for selected rows
+style.map("Treeview", background=[('selected', '#2e2e2e')], foreground=[('selected', '#ffffff')])
+
 # Serial Port and Baud Rate Frame
 frame = ttk.Frame(root)
 frame.pack(pady=10)  # Add some padding around the frame
@@ -153,17 +185,23 @@ start_button = ttk.Button(frame, text="Start Listening", command=start_listening
 start_button.pack(side=tk.LEFT, padx=5)
 
 # Create Table
-table = ttk.Treeview(root, columns=('MAC Address', 'RSSI', 'Distance'), show='headings')
+table = ttk.Treeview(root, columns=('MAC Address', 'RSSI', 'Distance', 'Status'), show='headings')
 table.heading('MAC Address', text='MAC Address')
 table.heading('RSSI', text='RSSI')
 table.heading('Distance', text='Distance')
-table.pack(pady=10)
+table.heading('Status', text='Status')
+
+# Modify tag colors
+table.tag_configure('connected', background='#2e2e2e', foreground='#3cff00')  #  green
+table.tag_configure('disconnected', background='#2e2e2e', foreground='#ff0000')  #  red
+
+table.pack(fill=tk.BOTH, expand=True, pady=10)
 
 # Add double-click event binding to edit distance
 table.bind('<Double-1>', edit_distance)
 
 # Save Button
 save_button = ttk.Button(root, text="Save", command=save_to_csv)
-save_button.pack(pady=10)
+save_button.pack(side=tk.LEFT, padx=5, pady=10)
 
 root.mainloop()
