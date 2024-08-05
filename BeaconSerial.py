@@ -85,14 +85,24 @@ def save_to_csv():
         # Clear the updated rows set after saving
         updated_rows.clear()
 
-def add_distance():
-    selected_item = table.focus()
-    distance = distance_entry.get()
-    if selected_item and distance:
-        current_values = table.item(selected_item, 'values')
-        table.item(selected_item, values=(current_values[0], current_values[1], distance))
-        distance_entry.delete(0, tk.END)
-        updated_rows.add(selected_item)  # Mark this row as updated
+def edit_distance(event):
+    selected_item = table.selection()[0]
+    column = table.identify_column(event.x)
+    if column == '#3':  # Distance column
+        entry = ttk.Entry(root)
+        entry.place(x=event.x_root - root.winfo_rootx(), y=event.y_root - root.winfo_rooty())
+        entry.insert(0, table.item(selected_item, 'values')[2])
+        entry.focus()
+
+        def on_entry_validate(event):
+            new_distance = entry.get()
+            current_values = table.item(selected_item, 'values')
+            table.item(selected_item, values=(current_values[0], current_values[1], new_distance))
+            entry.destroy()
+            updated_rows.add(selected_item)  # Mark this row as updated
+
+        entry.bind('<Return>', on_entry_validate)
+        entry.bind('<FocusOut>', lambda e: entry.destroy())
 
 def start_listening():
     global ser
@@ -149,15 +159,8 @@ table.heading('RSSI', text='RSSI')
 table.heading('Distance', text='Distance')
 table.pack(pady=10)
 
-# Distance Entry
-distance_label = ttk.Label(root, text="Enter Distance:")
-distance_label.pack(pady=(10, 0))
-distance_entry = ttk.Entry(root)
-distance_entry.pack(pady=(0, 10))
-
-# Add Distance Button
-add_distance_button = ttk.Button(root, text="Add Distance", command=add_distance)
-add_distance_button.pack(pady=10)
+# Add double-click event binding to edit distance
+table.bind('<Double-1>', edit_distance)
 
 # Save Button
 save_button = ttk.Button(root, text="Save", command=save_to_csv)
