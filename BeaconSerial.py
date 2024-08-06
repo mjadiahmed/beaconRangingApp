@@ -58,10 +58,10 @@ def update_table(mac_address_str, rssi):
 
     if mac_address_str in mac_to_row:
         row_id = mac_to_row[mac_address_str]
-        table.item(row_id, values=(mac_address_str, rssi, table.item(row_id, 'values')[2], 'Connected'))
+        table.item(row_id, values=(mac_address_str, rssi, table.item(row_id, 'values')[2], table.item(row_id, 'values')[3], 'Connected'))
         updated_rows.add(row_id)
     else:
-        row_id = table.insert('', 'end', values=(mac_address_str, rssi, '', 'Connected'))
+        row_id = table.insert('', 'end', values=(mac_address_str, rssi, '', '', 'Connected'))
         mac_to_row[mac_address_str] = row_id
         updated_rows.add(row_id)
 
@@ -74,7 +74,7 @@ def update_rssi():
             elapsed_time = datetime.now() - last_seen
             status = 'Connected' if elapsed_time <= timedelta(seconds=10) else 'Disconnected'
             current_values = table.item(row_id, 'values')
-            table.item(row_id, values=(current_values[0], current_values[1], current_values[2], status))
+            table.item(row_id, values=(current_values[0], current_values[1], current_values[2], current_values[3], status))
             tags = ['connected'] if status == 'Connected' else ['disconnected']
             table.item(row_id, tags=tags)
 
@@ -85,20 +85,20 @@ def save_to_csv():
     with open('distance_rssi_data.csv', 'a', newline='') as csvfile:
         writer = csv.writer(csvfile)
         if not file_exists or os.path.getsize('distance_rssi_data.csv') == 0:
-            writer.writerow(['MAC Address', 'RSSI', 'Distance', 'Date', 'Time'])
+            writer.writerow(['MAC Address', 'RSSI', 'Distance', 'Comment', 'Date', 'Time'])
         for row_id in updated_rows:
             row = table.item(row_id)['values']
-            if len(row) == 4:
+            if len(row) == 5:
                 date_time_now = datetime.now()
                 date_str = date_time_now.strftime('%Y-%m-%d')
                 time_str = date_time_now.strftime('%H:%M:%S')
-                writer.writerow(row[:3] + [date_str, time_str])
+                writer.writerow(row[:4] + [date_str, time_str])
         updated_rows.clear()
 
 def edit_distance(event):
     selected_item = table.selection()[0]
     column = table.identify_column(event.x)
-    if column == '#3':
+    if column == '#3':  # Distance column
         entry = ttk.Entry(root)
         entry.place(x=event.x_root - root.winfo_rootx(), y=event.y_root - root.winfo_rooty())
         entry.insert(0, table.item(selected_item, 'values')[2])
@@ -107,7 +107,23 @@ def edit_distance(event):
         def on_entry_validate(event):
             new_distance = entry.get()
             current_values = table.item(selected_item, 'values')
-            table.item(selected_item, values=(current_values[0], current_values[1], new_distance, current_values[3]))
+            table.item(selected_item, values=(current_values[0], current_values[1], new_distance, current_values[3], current_values[4]))
+            entry.destroy()
+            updated_rows.add(selected_item)
+
+        entry.bind('<Return>', on_entry_validate)
+        entry.bind('<FocusOut>', lambda e: entry.destroy())
+    
+    elif column == '#4':  # Comment column
+        entry = ttk.Entry(root)
+        entry.place(x=event.x_root - root.winfo_rootx(), y=event.y_root - root.winfo_rooty())
+        entry.insert(0, table.item(selected_item, 'values')[3])
+        entry.focus()
+
+        def on_entry_validate(event):
+            new_comment = entry.get()
+            current_values = table.item(selected_item, 'values')
+            table.item(selected_item, values=(current_values[0], current_values[1], current_values[2], new_comment, current_values[4]))
             entry.destroy()
             updated_rows.add(selected_item)
 
@@ -168,10 +184,11 @@ baud_combobox.pack(side=tk.LEFT, padx=5)
 start_button = ttk.Button(frame, text="Start Listening", command=start_listening)
 start_button.pack(side=tk.LEFT, padx=5)
 
-table = ttk.Treeview(root, columns=('MAC Address', 'RSSI', 'Distance', 'Status'), show='headings')
+table = ttk.Treeview(root, columns=('MAC Address', 'RSSI', 'Distance', 'Comment', 'Status'), show='headings')
 table.heading('MAC Address', text='MAC Address')
 table.heading('RSSI', text='RSSI')
 table.heading('Distance', text='Distance')
+table.heading('Comment', text='Comment')
 table.heading('Status', text='Status')
 
 table.tag_configure('connected', background='#2e2e2e', foreground='#3cff00')
