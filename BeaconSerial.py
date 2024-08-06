@@ -99,7 +99,7 @@ def edit_distance(event):
     selected_item = table.selection()[0]
     column = table.identify_column(event.x)
     if column == '#3':  # Distance column
-        entry = ttk.Entry(root)
+        entry = ttk.Entry(root, font=("Arial", 20))
         entry.place(x=event.x_root - root.winfo_rootx(), y=event.y_root - root.winfo_rooty())
         entry.insert(0, table.item(selected_item, 'values')[2])
         entry.focus()
@@ -115,7 +115,7 @@ def edit_distance(event):
         entry.bind('<FocusOut>', lambda e: entry.destroy())
     
     elif column == '#4':  # Comment column
-        entry = ttk.Entry(root)
+        entry = ttk.Entry(root, font=("Arial", 20))
         entry.place(x=event.x_root - root.winfo_rootx(), y=event.y_root - root.winfo_rooty())
         entry.insert(0, table.item(selected_item, 'values')[3])
         entry.focus()
@@ -155,11 +155,11 @@ root.configure(bg='#2e2e2e')
 style = ttk.Style(root)
 style.theme_use('clam')
 style.configure("TFrame", background='#2e2e2e')
-style.configure("TLabel", background='#2e2e2e', foreground='#ffffff')
-style.configure("TCombobox", background='#2e2e2e', foreground='#ffffff', fieldbackground='#2e2e2e')
-style.configure("TButton", background='#444444', foreground='#ffffff')
-style.configure("Treeview", background='#2e2e2e', fieldbackground='#2e2e2e', foreground='#ffffff', rowheight=25)
-style.configure("Treeview.Heading", background='#444444', foreground='#ffffff')
+style.configure("TLabel", background='#2e2e2e', foreground='#ffffff', font=("Arial", 20))
+style.configure("TCombobox", background='#2e2e2e', foreground='#ffffff', fieldbackground='#2e2e2e', font=("Arial", 20))
+style.configure("TButton", background='#444444', foreground='#ffffff', font=("Arial", 20))
+style.configure("Treeview", background='#2e2e2e', fieldbackground='#2e2e2e', foreground='#ffffff', rowheight=35, font=("Arial", 20))
+style.configure("Treeview.Heading", background='#444444', foreground='#ffffff', font=("Arial", 20))
 style.map("TButton", background=[('active', '#555555')])
 style.map("Treeview", background=[('selected', '#2e2e2e')], foreground=[('selected', '#ffffff')])
 
